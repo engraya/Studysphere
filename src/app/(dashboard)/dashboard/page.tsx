@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { createAdminClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,15 +23,19 @@ import { PageMotion } from '@/components/shared/PageMotion'
 export const metadata = { title: 'Dashboard' }
 
 async function getDashboardData(userId: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
-  const { data: userRow } = await supabase
+  const { data: userRow, error: userError } = await supabase
     .from('users')
     .select('id, streak_count, subjects, study_goal, full_name')
     .eq('clerk_id', userId)
     .single()
 
-  if (!userRow) return null
+  if (userError) console.error('[dashboard] user query error:', userError)
+  if (!userRow) {
+    console.error('[dashboard] no user row for clerk_id:', userId)
+    return null
+  }
 
   const [docsRes, quizzesRes, decksRes, activityRes, weaknessRes] = await Promise.all([
     supabase
@@ -95,7 +100,7 @@ export default async function DashboardPage() {
   if (!userId) return null
 
   const data = await getDashboardData(userId)
-  if (!data) return null
+  if (!data) redirect('/onboarding')
 
   const { user, recentDocs, recentQuizzes, weeklyMinutes, avgScore, weaknesses } = data
 

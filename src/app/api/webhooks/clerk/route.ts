@@ -46,6 +46,15 @@ export async function POST(req: Request) {
   const supabase = createAdminClient()
   const { type, data } = event
 
+  if (!['user.created', 'user.updated', 'user.deleted'].includes(type)) {
+    return new Response('OK', { status: 200 })
+  }
+
+  if (type === 'user.deleted') {
+    await supabase.from('users').delete().eq('clerk_id', data.id)
+    return new Response('OK', { status: 200 })
+  }
+
   const primaryEmail = data.email_addresses.find(
     (e) => e.id === data.primary_email_address_id
   )?.email_address
@@ -82,10 +91,6 @@ export async function POST(req: Request) {
       console.error('Error updating user:', error)
       return new Response('Database error', { status: 500 })
     }
-  }
-
-  if (type === 'user.deleted') {
-    await supabase.from('users').delete().eq('clerk_id', data.id)
   }
 
   return new Response('OK', { status: 200 })

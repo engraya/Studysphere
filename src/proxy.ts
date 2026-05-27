@@ -5,7 +5,6 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/sso-callback(.*)',
   '/api/webhooks/clerk',
 ])
 
@@ -19,16 +18,12 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   if (userId) {
-    const { sessionClaims } = await auth()
-    const isOnboarded = (sessionClaims?.metadata as { onboarded?: boolean } | undefined)
-      ?.onboarded
-
-    if (!isOnboarded && !isOnboardingRoute(req) && !isPublicRoute(req)) {
-      return NextResponse.redirect(new URL('/onboarding', req.url))
+    if (isPublicRoute(req)) {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
-    if (isOnboarded && isOnboardingRoute(req)) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
+    if (isOnboardingRoute(req)) {
+      return NextResponse.next()
     }
   }
 })

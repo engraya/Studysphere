@@ -22,16 +22,26 @@ export async function POST(req: Request) {
   const { study_goal, subjects, timezone } = parsed.data
   const supabase = createAdminClient()
 
+  const client = await clerkClient()
+  const clerkUser = await client.users.getUser(userId)
+  const email = clerkUser.emailAddresses.find(
+    (e) => e.id === clerkUser.primaryEmailAddressId
+  )?.emailAddress ?? ''
+  const fullName =
+    [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null
+
   const { error } = await supabase
     .from('users')
-    .update({ study_goal, subjects, timezone, onboarded: true })
-    .eq('clerk_id', userId)
+    .upsert(
+      { clerk_id: userId, email, full_name: fullName, study_goal, subjects, timezone, onboarded: true },
+      { onConflict: 'clerk_id' }
+    )
 
   if (error) {
+    console.error('[onboard] upsert error:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
 
-  const client = await clerkClient()
   await client.users.updateUserMetadata(userId, {
     publicMetadata: { onboarded: true },
   })
