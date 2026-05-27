@@ -11,11 +11,13 @@ import {
   Upload,
   Flame,
   TrendingUp,
+  TrendingDown,
   ArrowRight,
   Clock,
   Target,
 } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
+import { PageMotion } from '@/components/shared/PageMotion'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -80,6 +82,14 @@ async function getDashboardData(userId: string) {
   }
 }
 
+const fileTypeBadgeStyle: Record<string, string> = {
+  pdf: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  docx: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  txt: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
+  youtube: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  note: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+}
+
 export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) return null
@@ -89,184 +99,248 @@ export default async function DashboardPage() {
 
   const { user, recentDocs, recentQuizzes, weeklyMinutes, avgScore, weaknesses } = data
 
-  const dueTodayCount = 0 // placeholder until flashcard query added
+  const dueTodayCount = 0
 
   const stats = [
-    { label: 'Study Streak', value: `${user.streak_count}d`, icon: Flame, color: 'text-orange-500' },
-    { label: 'Weekly Study', value: `${weeklyMinutes}m`, icon: Clock, color: 'text-blue-500' },
-    { label: 'Avg Quiz Score', value: avgScore !== null ? `${avgScore}%` : '—', icon: Target, color: 'text-emerald-500' },
-    { label: 'Documents', value: recentDocs.length.toString(), icon: Upload, color: 'text-violet-500' },
+    {
+      label: 'Study Streak',
+      value: `${user.streak_count}d`,
+      icon: Flame,
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10',
+      trend: user.streak_count > 0 ? 'up' : null,
+    },
+    {
+      label: 'Weekly Study',
+      value: weeklyMinutes >= 60
+        ? `${Math.floor(weeklyMinutes / 60)}h ${weeklyMinutes % 60}m`
+        : `${weeklyMinutes}m`,
+      icon: Clock,
+      color: 'text-blue-500',
+      bg: 'bg-blue-500/10',
+      trend: weeklyMinutes > 120 ? 'up' : weeklyMinutes > 0 ? null : 'down',
+    },
+    {
+      label: 'Avg Quiz Score',
+      value: avgScore !== null ? `${avgScore}%` : '—',
+      icon: Target,
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-500/10',
+      trend: avgScore !== null ? (avgScore >= 70 ? 'up' : 'down') : null,
+    },
+    {
+      label: 'Materials',
+      value: recentDocs.length.toString(),
+      icon: Upload,
+      color: 'text-violet-500',
+      bg: 'bg-violet-500/10',
+      trend: null,
+    },
   ]
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <div>
-        <h1 className="text-2xl font-bold">
-          Good {getTimeOfDay()}, {user.full_name?.split(' ')[0] ?? 'there'} 👋
-        </h1>
-        <p className="text-muted-foreground mt-1">Here&apos;s your study overview.</p>
-      </div>
+    <PageMotion>
+      <div className="space-y-8 max-w-6xl">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Good {getTimeOfDay()},{' '}
+            <span className="text-primary">{user.full_name?.split(' ')[0] ?? 'there'}</span> 👋
+          </h1>
+          <p className="text-muted-foreground mt-1">Here&apos;s your study overview.</p>
+        </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon className={`w-4 h-4 ${color}`} />
-              <span className="text-xs text-muted-foreground">{label}</span>
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map(({ label, value, icon: Icon, color, bg, trend }) => (
+            <Card key={label} className="p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center`}>
+                  <Icon className={`w-4 h-4 ${color}`} />
+                </div>
+                {trend === 'up' && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
+                {trend === 'down' && <TrendingDown className="w-3.5 h-3.5 text-rose-500" />}
+              </div>
+              <p className="text-2xl font-bold tracking-tight">{value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Quick Actions */}
+          <Card className="p-5 lg:col-span-1">
+            <h2 className="font-semibold mb-4 text-sm">Quick Actions</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { href: '/workspace/new', icon: Upload, label: 'Upload', color: 'text-blue-500', bg: 'bg-blue-500/8' },
+                { href: '/quiz/generate', icon: Brain, label: 'Generate Quiz', color: 'text-orange-500', bg: 'bg-orange-500/8' },
+                { href: '/flashcards/daily', icon: BookOpen, label: 'Daily Review', color: 'text-emerald-500', bg: 'bg-emerald-500/8', badge: dueTodayCount },
+                { href: '/chat', icon: MessageSquare, label: 'AI Tutor', color: 'text-violet-500', bg: 'bg-violet-500/8' },
+              ].map(({ href, icon: Icon, label, color, bg, badge }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl ${bg} hover:opacity-80 transition-opacity relative`}
+                >
+                  <Icon className={`w-5 h-5 ${color}`} />
+                  <span className="text-xs font-medium text-center leading-tight">{label}</span>
+                  {badge && badge > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                      {badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
-            <p className="text-2xl font-bold">{value}</p>
           </Card>
-        ))}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
-        <Card className="p-5 lg:col-span-1">
-          <h2 className="font-semibold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Quick Actions
-          </h2>
-          <div className="space-y-2">
-            <Button className="w-full justify-start gap-2" asChild>
-              <Link href="/workspace/new">
-                <Upload className="w-4 h-4" />
-                Upload Study Material
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" asChild>
-              <Link href="/quiz/generate">
-                <Brain className="w-4 h-4" />
-                Generate Quiz
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" asChild>
-              <Link href="/flashcards/daily">
-                <BookOpen className="w-4 h-4" />
-                Daily Review
-                {dueTodayCount > 0 && (
-                  <Badge className="ml-auto">{dueTodayCount}</Badge>
-                )}
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" asChild>
-              <Link href="/chat">
-                <MessageSquare className="w-4 h-4" />
-                Chat with AI Tutor
-              </Link>
-            </Button>
-          </div>
-        </Card>
-
-        {/* Recent Documents */}
-        <Card className="p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Recent Materials</h2>
-            <Button variant="ghost" size="sm" asChild className="gap-1">
-              <Link href="/workspace">
-                View all <ArrowRight className="w-3 h-3" />
-              </Link>
-            </Button>
-          </div>
-          {recentDocs.length === 0 ? (
-            <div className="text-center py-8">
-              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No materials yet.</p>
-              <Button size="sm" className="mt-3" asChild>
-                <Link href="/workspace/new">Upload your first file</Link>
+          {/* Recent Documents */}
+          <Card className="p-5 lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-sm">Recent Materials</h2>
+              <Button variant="ghost" size="sm" asChild className="gap-1 text-xs">
+                <Link href="/workspace">
+                  View all <ArrowRight className="w-3 h-3" />
+                </Link>
               </Button>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {recentDocs.map((doc) => (
-                <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary uppercase">
-                      {doc.file_type.slice(0, 3)}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{doc.file_name}</p>
-                    <p className="text-xs text-muted-foreground">{formatRelativeDate(doc.created_at)}</p>
-                  </div>
-                  <Badge
-                    variant={doc.embed_status === 'done' ? 'secondary' : 'outline'}
-                    className="text-xs shrink-0"
-                  >
-                    {doc.embed_status === 'done' ? 'Ready' : doc.embed_status}
-                  </Badge>
+            {recentDocs.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mx-auto mb-3">
+                  <Upload className="w-6 h-6 text-blue-500" />
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+                <p className="text-sm font-medium mb-1">No materials yet</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Upload a PDF, DOCX, or paste a YouTube URL to get started.
+                </p>
+                <Button size="sm" asChild>
+                  <Link href="/workspace/new">Upload your first file</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {recentDocs.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <span
+                        className={`text-[10px] font-bold uppercase px-1 rounded ${fileTypeBadgeStyle[doc.file_type] ?? 'text-muted-foreground'}`}
+                      >
+                        {doc.file_type.slice(0, 3)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.file_name}</p>
+                      <p className="text-xs text-muted-foreground">{formatRelativeDate(doc.created_at)}</p>
+                    </div>
+                    <Badge
+                      className={`text-xs shrink-0 ${
+                        doc.embed_status === 'done'
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                          : doc.embed_status === 'processing'
+                          ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200'
+                          : 'border-border text-muted-foreground'
+                      }`}
+                    >
+                      {doc.embed_status === 'done' ? 'Ready' : doc.embed_status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
 
-      {/* Recent Quizzes + Weaknesses */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Brain className="w-4 h-4" />
-              Recent Quizzes
+        {/* Recent Quizzes + Weaknesses */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-sm flex items-center gap-2">
+                <Brain className="w-4 h-4 text-orange-500" />
+                Recent Quizzes
+              </h2>
+              <Button variant="ghost" size="sm" asChild className="gap-1 text-xs">
+                <Link href="/quiz">View all <ArrowRight className="w-3 h-3" /></Link>
+              </Button>
+            </div>
+            {recentQuizzes.length === 0 ? (
+              <div className="text-center py-6">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mx-auto mb-2">
+                  <Brain className="w-5 h-5 text-orange-500" />
+                </div>
+                <p className="text-sm text-muted-foreground">No quizzes yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {recentQuizzes.map((q) => (
+                  <div
+                    key={q.id}
+                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{q.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {q.completed_at ? formatRelativeDate(q.completed_at) : ''}
+                      </p>
+                    </div>
+                    <Badge
+                      className={`shrink-0 text-xs font-semibold ${
+                        q.score === null
+                          ? 'border-border text-muted-foreground'
+                          : q.score >= 85
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                          : q.score >= 70
+                          ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                          : q.score >= 50
+                          ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400'
+                          : 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
+                      }`}
+                    >
+                      {q.score !== null ? `${q.score}%` : 'N/A'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="font-semibold text-sm flex items-center gap-2 mb-4">
+              <Target className="w-4 h-4 text-rose-500" />
+              Areas to Improve
             </h2>
-            <Button variant="ghost" size="sm" asChild className="gap-1">
-              <Link href="/quiz">View all <ArrowRight className="w-3 h-3" /></Link>
-            </Button>
-          </div>
-          {recentQuizzes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No quizzes yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentQuizzes.map((q) => (
-                <div key={q.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{q.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {q.completed_at ? formatRelativeDate(q.completed_at) : ''}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={q.score !== null && q.score >= 70 ? 'secondary' : 'outline'}
-                    className="shrink-0"
-                  >
-                    {q.score !== null ? `${q.score}%` : 'N/A'}
-                  </Badge>
+            {weaknesses.length === 0 ? (
+              <div className="text-center py-6">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-500" />
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="p-5">
-          <h2 className="font-semibold flex items-center gap-2 mb-4">
-            <Target className="w-4 h-4 text-rose-500" />
-            Areas to Improve
-          </h2>
-          {weaknesses.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No weaknesses detected yet. Keep studying!
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {weaknesses.map((w) => (
-                <div key={w.topic} className="flex items-center justify-between p-2.5 rounded-lg">
-                  <p className="text-sm font-medium">{w.topic}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{w.error_count} errors</span>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/quiz/generate?topic=${encodeURIComponent(w.topic)}`}>
-                        Practice
-                      </Link>
-                    </Button>
+                <p className="text-sm text-muted-foreground">
+                  No weaknesses detected yet. Keep studying!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {weaknesses.map((w) => (
+                  <div key={w.topic} className="flex items-center justify-between p-2.5 rounded-lg">
+                    <p className="text-sm font-medium">{w.topic}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{w.error_count} errors</span>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/quiz/generate?topic=${encodeURIComponent(w.topic)}`}>
+                          Practice
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
-    </div>
+    </PageMotion>
   )
 }
 

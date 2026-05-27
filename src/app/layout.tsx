@@ -1,10 +1,21 @@
 import type { Metadata } from 'next'
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { QueryProvider } from '@/providers/QueryProvider'
 import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+})
+
+const jakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -24,7 +35,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jakartaSans.variable}`}>
         <body className="min-h-screen bg-background antialiased">
           <ThemeProvider>
             <QueryProvider>
