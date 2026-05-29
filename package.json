@@ -32,7 +32,7 @@
     "ai": "^6.0.185",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.0.0",
     "framer-motion": "^12.39.0",
     "lucide-react": "^1.16.0",
     "mammoth": "^1.12.0",
