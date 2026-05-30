@@ -1,7 +1,7 @@
 import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from '@google/genai'
 
 const MODEL = 'gemini-3.5-flash'
-const EMBEDDING_MODEL = 'text-embedding-004'
+const EMBEDDING_MODEL = 'gemini-embedding-001'
 
 function getGenAI() {
   const key = process.env.GOOGLE_GEMINI_API_KEY

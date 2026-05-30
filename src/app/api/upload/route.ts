@@ -10,6 +10,16 @@ import { getFileExtension, MAX_FILE_SIZE_BYTES } from '@/lib/utils'
 export const maxDuration = 60
 
 export async function POST(req: Request) {
+  try {
+    return await handleUpload(req)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[upload] Unhandled error:', message)
+    return NextResponse.json({ error: `Upload failed: ${message}` }, { status: 500 })
+  }
+}
+
+async function handleUpload(req: Request) {
   const { userId } = await auth()
   if (!userId) return new Response('Unauthorized', { status: 401 })
 

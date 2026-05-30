@@ -46,13 +46,19 @@ export async function POST(req: Request) {
 
   if (!userRow) return new Response('User not found', { status: 404 })
 
-  const context = await retrieveContext(
-    topic ?? `Generate a ${difficulty} quiz`,
-    userRow.id,
-    session_id ?? null,
-    8,
-    0.4
-  )
+  let context
+  try {
+    context = await retrieveContext(
+      topic ?? `Generate a ${difficulty} quiz`,
+      userRow.id,
+      session_id ?? null,
+      8,
+      0.4
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 503 })
+  }
 
   if (!context.contextText) {
     return NextResponse.json(
@@ -68,14 +74,22 @@ export async function POST(req: Request) {
     topic,
   })
 
-  const result = await geminiProJSON.generateContent(prompt)
-  const raw = result.response.text()
+  let raw: string
+  try {
+    const result = await geminiProJSON.generateContent(prompt)
+    raw = result.response.text()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[quiz/generate] Gemini error:', message)
+    return NextResponse.json({ error: `AI request failed: ${message}` }, { status: 500 })
+  }
 
   let questions: z.infer<typeof questionSchema>[]
   try {
     const parsed = JSON.parse(raw)
     questions = z.array(questionSchema).parse(parsed.questions)
   } catch {
+    console.error('[quiz/generate] Failed to parse AI response:', raw)
     return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 })
   }
 

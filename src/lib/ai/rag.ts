@@ -16,7 +16,14 @@ export async function retrieveContext(
 ): Promise<RAGContext> {
   const supabase = createAdminClient()
 
-  const queryEmbedding = await embedText(query)
+  let queryEmbedding: number[]
+  try {
+    queryEmbedding = await embedText(query)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[rag] embedText failed:', message)
+    throw new Error(`Embedding failed — check GOOGLE_GEMINI_API_KEY: ${message}`)
+  }
 
   const { data: chunks, error } = await supabase.rpc('match_document_chunks', {
     query_embedding: queryEmbedding as never,
